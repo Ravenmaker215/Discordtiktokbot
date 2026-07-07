@@ -1,0 +1,19 @@
+{
+  "name": "tiktok-discord-live-bot",
+  "version": "1.0.0",
+  "description": "Discord bot that alerts a server when tracked TikTok accounts go live.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "commands:deploy": "node src/deploy-commands.js",
+    "start": "node src/index.js",
+    "check": "node scripts/check-syntax.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.26.4",
+    "tiktok-live-connector": "^2.3.0-beta1"
+  }
+}
