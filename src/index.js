@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits } from 'discord.js';
+import { ActivityType, Client, Events, GatewayIntentBits } from 'discord.js';
 import { config, requireBotConfig } from './config.js';
 import { handleInteraction } from './interactions.js';
 import { LiveWatcher } from './live-watcher.js';
@@ -23,9 +23,39 @@ const watcher = new LiveWatcher({
   defaultAlertChannelId: config.defaultAlertChannelId
 });
 
+const activityTypes = {
+  PLAYING: ActivityType.Playing,
+  STREAMING: ActivityType.Streaming,
+  LISTENING: ActivityType.Listening,
+  WATCHING: ActivityType.Watching,
+  COMPETING: ActivityType.Competing
+};
+
+function applyBotPresence(readyClient) {
+  if (!config.botActivityName) {
+    readyClient.user.setStatus(config.botStatus);
+    return;
+  }
+
+  readyClient.user.setPresence({
+    status: config.botStatus,
+    activities: [
+      {
+        name: config.botActivityName,
+        type: activityTypes[config.botActivityType] ?? ActivityType.Playing
+      }
+    ]
+  });
+
+  console.log(
+    `Discord activity set to ${config.botActivityType.toLowerCase()} ${config.botActivityName}.`
+  );
+}
+
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}.`);
   console.log(`TikTok polling every ${Math.round(config.pollMs / 1000)}s.`);
+  applyBotPresence(readyClient);
   watcher.start();
 });
 

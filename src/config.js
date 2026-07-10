@@ -4,6 +4,14 @@ import { loadEnvFile } from './env.js';
 loadEnvFile();
 
 const MIN_POLL_SECONDS = 30;
+const VALID_ACTIVITY_TYPES = new Set([
+  'PLAYING',
+  'STREAMING',
+  'LISTENING',
+  'WATCHING',
+  'COMPETING'
+]);
+const VALID_BOT_STATUSES = new Set(['online', 'idle', 'dnd', 'invisible']);
 
 function readPollMs() {
   const rawValue = Number.parseInt(process.env.TIKTOK_POLL_SECONDS ?? '60', 10);
@@ -24,11 +32,26 @@ function readDataFile() {
     : path.join(process.cwd(), configured);
 }
 
+function readActivityType() {
+  const configured = process.env.BOT_ACTIVITY_TYPE?.trim().toUpperCase();
+
+  return VALID_ACTIVITY_TYPES.has(configured) ? configured : 'PLAYING';
+}
+
+function readBotStatus() {
+  const configured = process.env.BOT_STATUS?.trim().toLowerCase();
+
+  return VALID_BOT_STATUSES.has(configured) ? configured : 'online';
+}
+
 export const config = {
   discordToken: process.env.DISCORD_TOKEN?.trim() ?? '',
   discordClientId: process.env.DISCORD_CLIENT_ID?.trim() ?? '',
   discordGuildId: process.env.DISCORD_GUILD_ID?.trim() || null,
   defaultAlertChannelId: process.env.DISCORD_ALERT_CHANNEL_ID?.trim() || null,
+  botActivityName: process.env.BOT_ACTIVITY_NAME?.trim() || null,
+  botActivityType: readActivityType(),
+  botStatus: readBotStatus(),
   pollMs: readPollMs(),
   dataFile: readDataFile(),
   tiktokSignApiKey:
