@@ -29,6 +29,41 @@ export const tiktokCommand = new SlashCommandBuilder()
           .setName('role')
           .setDescription('Optional role to mention when this user goes live')
       )
+      .addStringOption((option) =>
+        option
+          .setName('game')
+          .setDescription('Optional game/category to show in live alerts')
+          .setMaxLength(80)
+      )
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('game')
+      .setDescription('Set or update the game/category shown for a TikTok account')
+      .addStringOption((option) =>
+        option
+          .setName('username')
+          .setDescription('TikTok username, @handle, or profile URL')
+          .setRequired(true)
+      )
+      .addStringOption((option) =>
+        option
+          .setName('game')
+          .setDescription('Game/category to show in live alerts')
+          .setRequired(true)
+          .setMaxLength(80)
+      )
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('cleargame')
+      .setDescription('Remove the saved game/category from a TikTok account')
+      .addStringOption((option) =>
+        option
+          .setName('username')
+          .setDescription('TikTok username, @handle, or profile URL')
+          .setRequired(true)
+      )
   )
   .addSubcommand((subcommand) =>
     subcommand

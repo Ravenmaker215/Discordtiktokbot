@@ -191,14 +191,21 @@ export class LiveWatcher {
       .setTitle(title)
       .setURL(url)
       .setDescription(description)
-      .addFields(
-        {
-          name: 'Room',
-          value: status.roomId ?? 'Unknown',
-          inline: true
-        }
-      )
       .setTimestamp(new Date());
+
+    if (user.game) {
+      embed.addFields({
+        name: 'Game',
+        value: truncateText(user.game, 1024),
+        inline: true
+      });
+    }
+
+    embed.addFields({
+      name: 'Room',
+      value: status.roomId ?? 'Unknown',
+      inline: true
+    });
 
     if (status.previewImageUrl) {
       embed.setImage(status.previewImageUrl);

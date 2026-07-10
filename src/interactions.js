@@ -39,6 +39,10 @@ function formatRole(roleId) {
   return roleId ? `<@&${roleId}>` : 'No role ping';
 }
 
+function formatGame(game) {
+  return game ? game : 'No game set';
+}
+
 function summarizeUsers(users) {
   if (users.length === 0) {
     return 'No TikTok accounts are being watched yet.';
@@ -50,7 +54,9 @@ function summarizeUsers(users) {
       ? `<t:${Math.floor(new Date(user.lastCheckedAt).getTime() / 1000)}:R>`
       : 'not checked yet';
 
-    return `@${user.username} - ${status} - ${formatChannel(
+    const game = user.game ? ` - ${user.game}` : '';
+
+    return `@${user.username}${game} - ${status} - ${formatChannel(
       user.channelId
     )} - checked ${checked}`;
   });
@@ -92,6 +98,16 @@ export async function handleInteraction({ interaction, store, checker }) {
     return;
   }
 
+  if (subcommand === 'game') {
+    await handleGame(interaction, store);
+    return;
+  }
+
+  if (subcommand === 'cleargame') {
+    await handleClearGame(interaction, store);
+    return;
+  }
+
   if (subcommand === 'remove') {
     await handleRemove(interaction, store);
     return;
@@ -113,11 +129,13 @@ async function handleAdd(interaction, store) {
   );
   const channel = interaction.options.getChannel('channel') ?? interaction.channel;
   const role = interaction.options.getRole('role');
+  const game = interaction.options.getString('game');
 
   const result = await store.add({
     username,
     channelId: channel.id,
     roleId: role?.id ?? null,
+    game,
     addedBy: interaction.user.id
   });
 
@@ -139,11 +157,45 @@ async function handleAdd(interaction, store) {
         name: 'Role ping',
         value: formatRole(result.user.roleId),
         inline: true
+      },
+      {
+        name: 'Game',
+        value: formatGame(result.user.game),
+        inline: true
       }
     );
 
   await interaction.reply({
     embeds: [embed],
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+async function handleGame(interaction, store) {
+  const username = normalizeTikTokUsername(
+    interaction.options.getString('username', true)
+  );
+  const game = interaction.options.getString('game', true).trim();
+  const user = await store.setGame(username, game);
+
+  await interaction.reply({
+    content: user
+      ? `Set @${username}'s game/category to ${user.game}.`
+      : `@${username} is not on the TikTok watch list yet. Add them first with /tiktok add.`,
+    flags: MessageFlags.Ephemeral
+  });
+}
+
+async function handleClearGame(interaction, store) {
+  const username = normalizeTikTokUsername(
+    interaction.options.getString('username', true)
+  );
+  const user = await store.setGame(username, null);
+
+  await interaction.reply({
+    content: user
+      ? `Cleared @${username}'s saved game/category.`
+      : `@${username} is not on the TikTok watch list.`,
     flags: MessageFlags.Ephemeral
   });
 }

@@ -7,13 +7,20 @@ const EMPTY_DATA = {
   users: []
 };
 
-function createUser({ username, channelId, roleId, addedBy }) {
+function normalizeGame(game) {
+  const normalized = String(game ?? '').trim();
+
+  return normalized ? normalized.slice(0, 80) : null;
+}
+
+function createUser({ username, channelId, roleId, game, addedBy }) {
   const now = new Date().toISOString();
 
   return {
     username: normalizeTikTokUsername(username),
     channelId,
     roleId: roleId ?? null,
+    game: normalizeGame(game),
     addedBy: addedBy ?? null,
     addedAt: now,
     updatedAt: now,
@@ -39,6 +46,7 @@ function sanitizeData(data) {
           username,
           channelId: user.channelId ?? null,
           roleId: user.roleId ?? null,
+          game: user.game ?? null,
           addedBy: user.addedBy ?? null
         }),
         ...user,
@@ -111,16 +119,18 @@ export class WatchStore {
     return data.users.find((user) => user.username === normalized) ?? null;
   }
 
-  async add({ username, channelId, roleId, addedBy }) {
+  async add({ username, channelId, roleId, game, addedBy }) {
     const normalized = normalizeTikTokUsername(username);
+    const normalizedGame = normalizeGame(game);
 
     return this.update((data) => {
       const existing = data.users.find((user) => user.username === normalized);
       const now = new Date().toISOString();
 
       if (existing) {
-        existing.channelId = channelId;
-        existing.roleId = roleId ?? null;
+        existing.channelId = channelId ?? existing.channelId;
+        existing.roleId = roleId ?? existing.roleId ?? null;
+        existing.game = normalizedGame ?? existing.game ?? null;
         existing.updatedAt = now;
         return { created: false, user: existing };
       }
@@ -129,6 +139,7 @@ export class WatchStore {
         username: normalized,
         channelId,
         roleId,
+        game: normalizedGame,
         addedBy
       });
 
@@ -147,6 +158,23 @@ export class WatchStore {
       data.users = data.users.filter((user) => user.username !== normalized);
 
       return originalLength !== data.users.length;
+    });
+  }
+
+  async setGame(username, game) {
+    const normalized = normalizeTikTokUsername(username);
+    const normalizedGame = normalizeGame(game);
+
+    return this.update((data) => {
+      const user = data.users.find((entry) => entry.username === normalized);
+
+      if (!user) {
+        return null;
+      }
+
+      user.game = normalizedGame;
+      user.updatedAt = new Date().toISOString();
+      return user;
     });
   }
 
