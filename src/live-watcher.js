@@ -1,7 +1,26 @@
-import { EmbedBuilder } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder
+} from 'discord.js';
 import { liveUrlFor } from './usernames.js';
 
 const TIKTOK_COLOR = 0xfe2c55;
+
+function truncateText(value, maxLength) {
+  if (!value) {
+    return null;
+  }
+
+  const text = String(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
+}
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -149,17 +168,30 @@ export class LiveWatcher {
 
     const url = liveUrlFor(user.username);
     const rolePing = user.roleId ? `<@&${user.roleId}> ` : '';
+    const displayName = status.hostName ?? `@${user.username}`;
+    const title = truncateText(
+      status.title ?? `${displayName} is LIVE on TikTok`,
+      256
+    );
+    const description = truncateText(
+      status.description ?? 'Tap through to watch the live stream.',
+      4096
+    );
+    const author = {
+      name: truncateText(displayName, 256)
+    };
+
+    if (status.avatarUrl) {
+      author.iconURL = status.avatarUrl;
+    }
+
     const embed = new EmbedBuilder()
       .setColor(TIKTOK_COLOR)
-      .setTitle(`@${user.username} is LIVE on TikTok`)
+      .setAuthor(author)
+      .setTitle(title)
       .setURL(url)
-      .setDescription('Tap through to watch the live stream.')
+      .setDescription(description)
       .addFields(
-        {
-          name: 'TikTok',
-          value: `[Open live](${url})`,
-          inline: true
-        },
         {
           name: 'Room',
           value: status.roomId ?? 'Unknown',
@@ -168,9 +200,27 @@ export class LiveWatcher {
       )
       .setTimestamp(new Date());
 
+    if (status.previewImageUrl) {
+      embed.setImage(status.previewImageUrl);
+    }
+
+    if (status.avatarUrl && !status.previewImageUrl) {
+      embed.setThumbnail(status.avatarUrl);
+    }
+
+    const components = [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel('Watch Stream')
+          .setStyle(ButtonStyle.Link)
+          .setURL(url)
+      )
+    ];
+
     await channel.send({
-      content: `${rolePing}@${user.username} is LIVE on TikTok: ${url}`,
+      content: `${rolePing}@${user.username} is LIVE on TikTok`,
       embeds: [embed],
+      components,
       allowedMentions: user.roleId
         ? {
             roles: [user.roleId]

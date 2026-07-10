@@ -1,7 +1,28 @@
-import { EmbedBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  MessageFlags,
+  PermissionFlagsBits
+} from 'discord.js';
 import { liveUrlFor, normalizeTikTokUsername } from './usernames.js';
 
 const TIKTOK_COLOR = 0xfe2c55;
+
+function truncateText(value, maxLength) {
+  if (!value) {
+    return null;
+  }
+
+  const text = String(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
+}
 
 function hasManagePermission(interaction) {
   return (
@@ -165,11 +186,12 @@ async function handleCheck(interaction, checker) {
 
   const status = await checker.fetchStatus(username);
   const url = liveUrlFor(username);
+  const displayName = status.hostName ?? `@${username}`;
   const embed = new EmbedBuilder()
     .setColor(status.isLive ? TIKTOK_COLOR : 0x5865f2)
     .setTitle(
       status.isLive
-        ? `@${username} is LIVE on TikTok`
+        ? truncateText(status.title ?? `${displayName} is LIVE on TikTok`, 256)
         : `@${username} is not live right now`
     )
     .setURL(url)
@@ -178,6 +200,25 @@ async function handleCheck(interaction, checker) {
       value: `[Open TikTok](${url})`
     });
 
+  if (status.isLive) {
+    const author = {
+      name: truncateText(displayName, 256)
+    };
+
+    if (status.avatarUrl) {
+      author.iconURL = status.avatarUrl;
+    }
+
+    embed
+      .setAuthor(author)
+      .setDescription(
+        truncateText(
+          status.description ?? 'Tap through to watch the live stream.',
+          4096
+        )
+      );
+  }
+
   if (status.roomId) {
     embed.addFields({
       name: 'Room',
@@ -185,7 +226,25 @@ async function handleCheck(interaction, checker) {
     });
   }
 
+  if (status.previewImageUrl) {
+    embed.setImage(status.previewImageUrl);
+  } else if (status.avatarUrl) {
+    embed.setThumbnail(status.avatarUrl);
+  }
+
+  const components = status.isLive
+    ? [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('Watch Stream')
+            .setStyle(ButtonStyle.Link)
+            .setURL(url)
+        )
+      ]
+    : [];
+
   await interaction.editReply({
-    embeds: [embed]
+    embeds: [embed],
+    components
   });
 }
