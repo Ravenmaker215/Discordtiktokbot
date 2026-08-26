@@ -13,11 +13,18 @@ function normalizeGame(game) {
   return normalized ? normalized.slice(0, 80) : null;
 }
 
-function createUser({ username, channelId, roleId, game, addedBy }) {
+function createUser({
+  username,
+  channelId,
+  roleId,
+  game,
+  addedBy,
+  normalizeUsername = normalizeTikTokUsername
+}) {
   const now = new Date().toISOString();
 
   return {
-    username: normalizeTikTokUsername(username),
+    username: normalizeUsername(username),
     channelId,
     roleId: roleId ?? null,
     game: normalizeGame(game),
@@ -34,20 +41,21 @@ function createUser({ username, channelId, roleId, game, addedBy }) {
   };
 }
 
-function sanitizeData(data) {
+function sanitizeData(data, normalizeUsername = normalizeTikTokUsername) {
   const users = Array.isArray(data?.users) ? data.users : [];
   const deduped = new Map();
 
   for (const user of users) {
     try {
-      const username = normalizeTikTokUsername(user.username);
+      const username = normalizeUsername(user.username);
       deduped.set(username, {
         ...createUser({
           username,
           channelId: user.channelId ?? null,
           roleId: user.roleId ?? null,
           game: user.game ?? null,
-          addedBy: user.addedBy ?? null
+          addedBy: user.addedBy ?? null,
+          normalizeUsername
         }),
         ...user,
         username
@@ -66,15 +74,16 @@ function sanitizeData(data) {
 }
 
 export class WatchStore {
-  constructor(filePath) {
+  constructor(filePath, normalizeUsername = normalizeTikTokUsername) {
     this.filePath = filePath;
+    this.normalizeUsername = normalizeUsername;
     this.queue = Promise.resolve();
   }
 
   async load() {
     try {
       const raw = await fs.readFile(this.filePath, 'utf8');
-      return sanitizeData(JSON.parse(raw));
+      return sanitizeData(JSON.parse(raw), this.normalizeUsername);
     } catch (error) {
       if (error.code === 'ENOENT') {
         await this.save(EMPTY_DATA);
@@ -86,7 +95,7 @@ export class WatchStore {
   }
 
   async save(data) {
-    const sanitized = sanitizeData(data);
+    const sanitized = sanitizeData(data, this.normalizeUsername);
     const directory = path.dirname(this.filePath);
     const tempFile = `${this.filePath}.tmp`;
 
@@ -113,14 +122,14 @@ export class WatchStore {
   }
 
   async get(username) {
-    const normalized = normalizeTikTokUsername(username);
+    const normalized = this.normalizeUsername(username);
     const data = await this.load();
 
     return data.users.find((user) => user.username === normalized) ?? null;
   }
 
   async add({ username, channelId, roleId, game, addedBy }) {
-    const normalized = normalizeTikTokUsername(username);
+    const normalized = this.normalizeUsername(username);
     const normalizedGame = normalizeGame(game);
 
     return this.update((data) => {
@@ -140,7 +149,8 @@ export class WatchStore {
         channelId,
         roleId,
         game: normalizedGame,
-        addedBy
+        addedBy,
+        normalizeUsername: this.normalizeUsername
       });
 
       data.users.push(user);
@@ -151,7 +161,7 @@ export class WatchStore {
   }
 
   async remove(username) {
-    const normalized = normalizeTikTokUsername(username);
+    const normalized = this.normalizeUsername(username);
 
     return this.update((data) => {
       const originalLength = data.users.length;
@@ -162,7 +172,7 @@ export class WatchStore {
   }
 
   async setGame(username, game) {
-    const normalized = normalizeTikTokUsername(username);
+    const normalized = this.normalizeUsername(username);
     const normalizedGame = normalizeGame(game);
 
     return this.update((data) => {
@@ -179,7 +189,7 @@ export class WatchStore {
   }
 
   async updateStatus(username, status) {
-    const normalized = normalizeTikTokUsername(username);
+    const normalized = this.normalizeUsername(username);
 
     return this.update((data) => {
       const user = data.users.find((entry) => entry.username === normalized);

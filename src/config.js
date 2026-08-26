@@ -13,23 +13,24 @@ const VALID_ACTIVITY_TYPES = new Set([
 ]);
 const VALID_BOT_STATUSES = new Set(['online', 'idle', 'dnd', 'invisible']);
 
-function readPollMs() {
-  const rawValue = Number.parseInt(process.env.TIKTOK_POLL_SECONDS ?? '60', 10);
+function readPollMs(envName = 'TIKTOK_POLL_SECONDS', fallbackSeconds = 60) {
+  const rawValue = Number.parseInt(
+    process.env[envName] ?? String(fallbackSeconds),
+    10
+  );
   const seconds = Number.isFinite(rawValue) ? rawValue : 60;
 
   return Math.max(seconds, MIN_POLL_SECONDS) * 1000;
 }
 
-function readDataFile() {
-  const configured = process.env.DATA_FILE?.trim();
+function readDataFile(
+  envName = 'DATA_FILE',
+  fallbackPath = path.join('data', 'watched-users.json')
+) {
+  const configured = process.env[envName]?.trim();
+  const filePath = configured || fallbackPath;
 
-  if (!configured) {
-    return path.join(process.cwd(), 'data', 'watched-users.json');
-  }
-
-  return path.isAbsolute(configured)
-    ? configured
-    : path.join(process.cwd(), configured);
+  return path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
 }
 
 function readActivityType() {
@@ -44,6 +45,9 @@ function readBotStatus() {
   return VALID_BOT_STATUSES.has(configured) ? configured : 'online';
 }
 
+const twitchClientId = process.env.TWITCH_CLIENT_ID?.trim() ?? '';
+const twitchClientSecret = process.env.TWITCH_CLIENT_SECRET?.trim() ?? '';
+
 export const config = {
   discordToken: process.env.DISCORD_TOKEN?.trim() ?? '',
   discordClientId: process.env.DISCORD_CLIENT_ID?.trim() ?? '',
@@ -54,6 +58,17 @@ export const config = {
   botStatus: readBotStatus(),
   pollMs: readPollMs(),
   dataFile: readDataFile(),
+  twitchClientId,
+  twitchClientSecret,
+  twitchEnabled: Boolean(twitchClientId && twitchClientSecret),
+  twitchPollMs: readPollMs(
+    'TWITCH_POLL_SECONDS',
+    process.env.TIKTOK_POLL_SECONDS ?? '60'
+  ),
+  twitchDataFile: readDataFile(
+    'TWITCH_DATA_FILE',
+    path.join('data', 'twitch-watched-users.json')
+  ),
   tiktokSignApiKey:
     process.env.TIKTOK_SIGN_API_KEY?.trim() ||
     process.env.EULER_SIGN_API_KEY?.trim() ||

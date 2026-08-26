@@ -91,5 +91,57 @@ export const tiktokCommand = new SlashCommandBuilder()
       )
   );
 
-export const commands = [tiktokCommand];
+export const twitchCommand = new SlashCommandBuilder()
+  .setName('twitch')
+  .setDescription('Manage Twitch LIVE alerts')
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('add')
+      .setDescription('Watch a Twitch account for LIVE alerts')
+      .addStringOption((option) =>
+        option
+          .setName('username')
+          .setDescription('Twitch username or channel URL')
+          .setRequired(true)
+      )
+      .addChannelOption((option) =>
+        option
+          .setName('channel')
+          .setDescription('Where alerts should be posted')
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      )
+      .addRoleOption((option) =>
+        option
+          .setName('role')
+          .setDescription('Optional role to mention when this user goes live')
+      )
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('remove')
+      .setDescription('Stop watching a Twitch account')
+      .addStringOption((option) =>
+        option
+          .setName('username')
+          .setDescription('Twitch username or channel URL')
+          .setRequired(true)
+      )
+  )
+  .addSubcommand((subcommand) =>
+    subcommand.setName('list').setDescription('Show watched Twitch accounts')
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName('check')
+      .setDescription('Check a Twitch account right now')
+      .addStringOption((option) =>
+        option
+          .setName('username')
+          .setDescription('Twitch username or channel URL')
+          .setRequired(true)
+      )
+  );
+
+export const commands = [tiktokCommand, twitchCommand];
 export const commandJson = commands.map((command) => command.toJSON());

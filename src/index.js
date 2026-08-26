@@ -1,9 +1,13 @@
 import { ActivityType, Client, Events, GatewayIntentBits } from 'discord.js';
 import { config, requireBotConfig } from './config.js';
 import { handleInteraction } from './interactions.js';
+import { handleTwitchInteraction } from './twitch-interactions.js';
 import { LiveWatcher } from './live-watcher.js';
 import { WatchStore } from './storage.js';
 import { TikTokLiveChecker } from './tiktok-checker.js';
+import { TwitchLiveChecker } from './twitch-checker.js';
+import { normalizeTwitchUsername } from './twitch-usernames.js';
+import { TwitchWatcher } from './twitch-watcher.js';
 
 requireBotConfig();
 
@@ -11,15 +15,30 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-const store = new WatchStore(config.dataFile);
-const checker = new TikTokLiveChecker({
+const tiktokStore = new WatchStore(config.dataFile);
+const tiktokChecker = new TikTokLiveChecker({
   signApiKey: config.tiktokSignApiKey
 });
-const watcher = new LiveWatcher({
+const tiktokWatcher = new LiveWatcher({
   client,
-  store,
-  checker,
+  store: tiktokStore,
+  checker: tiktokChecker,
   pollMs: config.pollMs,
+  defaultAlertChannelId: config.defaultAlertChannelId
+});
+const twitchStore = new WatchStore(
+  config.twitchDataFile,
+  normalizeTwitchUsername
+);
+const twitchChecker = new TwitchLiveChecker({
+  clientId: config.twitchClientId,
+  clientSecret: config.twitchClientSecret
+});
+const twitchWatcher = new TwitchWatcher({
+  client,
+  store: twitchStore,
+  checker: twitchChecker,
+  pollMs: config.twitchPollMs,
   defaultAlertChannelId: config.defaultAlertChannelId
 });
 
@@ -56,15 +75,32 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}.`);
   console.log(`TikTok polling every ${Math.round(config.pollMs / 1000)}s.`);
   applyBotPresence(readyClient);
-  watcher.start();
+  tiktokWatcher.start();
+
+  if (config.twitchEnabled) {
+    console.log(
+      `Twitch polling every ${Math.round(config.twitchPollMs / 1000)}s.`
+    );
+    twitchWatcher.start();
+  } else {
+    console.log(
+      'Twitch alerts disabled. Add TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET to enable them.'
+    );
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     await handleInteraction({
       interaction,
-      store,
-      checker
+      store: tiktokStore,
+      checker: tiktokChecker
+    });
+    await handleTwitchInteraction({
+      interaction,
+      store: twitchStore,
+      checker: twitchChecker,
+      twitchEnabled: config.twitchEnabled
     });
   } catch (error) {
     const message = error?.message ?? String(error);
@@ -88,7 +124,8 @@ process.on('SIGTERM', shutdown);
 
 async function shutdown() {
   console.log('Shutting down...');
-  watcher.stop();
+  tiktokWatcher.stop();
+  twitchWatcher.stop();
   client.destroy();
   process.exit(0);
 }
