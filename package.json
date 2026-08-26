@@ -1,7 +1,7 @@
 {
   "name": "tiktok-discord-live-bot",
   "version": "1.0.0",
-  "description": "Discord bot that alerts a server when tracked TikTok accounts go live.",
+  "description": "Discord bot that alerts a server when tracked TikTok or Twitch accounts go live.",
   "type": "module",
   "private": true,
   "engines": {
